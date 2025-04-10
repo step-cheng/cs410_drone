@@ -158,7 +158,7 @@ void read_imu()
     vw=vw ^ 0xffff;
     vw=-vw-1;
   }          
-  imu_data[5]=-((float) vw / 32767 * 1000) - z_gyro_calibration;//convert to degrees/sec  
+  imu_data[5]=-((float) vw / 32767 * 1000) - z_gyro_calibration;//convert to degrees/sec  //negative so that positive roll corresponds to positive z angular velocity
   
   roll_angle = atan2(imu_data[2], imu_data[0]) / M_PI * 180 - roll_calibration;
   pitch_angle = atan2(imu_data[1], imu_data[0]) / M_PI * 180 - pitch_calibration;
