@@ -9,7 +9,7 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
-#define GYRO_RATE_MAX 600 // deg/s
+#define GYRO_RATE_MAX 1200 // deg/s //600
 #define ROLL_ANGLE_MAX 45 // deg
 #define PITCH_ANGLE_MAX 45 // deg
 #define JOYSTICK_TIMEOUT 0.5 // s
@@ -58,30 +58,35 @@ float time_since_last = 0;
 
 
 int motor_commands[4];
-float thrust_neutral = 1350;
-float thrust_amplitude = 200;
-float thrust_min = 0;
+float thrust_neutral = 1500; //1350 for ground effect
+float thrust_amplitude = 400; //200 for ground effect
+float thrust_min = 500;
 float thrust_max = 2000;
-float pitch_amplitude = 4;
+float pitch_amplitude = 4; //was 4
 float pitch_desired = 0;
-float roll_amplitude = 4;
+float roll_amplitude = 4; //was 4
 float roll_desired = 0;
 float thrust = 100;
 
-float yaw_amplitude = 100;
+float yaw_amplitude = 80;
 float yaw_desired = 0; //this is a rate
 
 float p_p_gain = 12;   // 12
 float p_d_gain = 2;    // 2
-float p_i_gain = 0.3;  // 0.3
+float p_i_gain = 0.4;  // 0.3
 float int_p_error = 0;
 float int_p_error_sat = 500;
 float r_p_gain = 12;
 float r_d_gain = 2; 
-float r_i_gain = 0.3;
+float r_i_gain = 0.4;
 float int_r_error = 0;
 float int_r_error_sat = 500;
-float y_p_gain = 5; 
+float y_p_gain = 6; 
+
+// for testing whether roll and pitch are consistently biased in one direction
+float p_bias = 0; //deg
+float r_bias = 0; //deg
+
 
 bool flag_print = false;
 bool is_paused = true;
@@ -332,21 +337,21 @@ void set_motors(int motor0, int motor1, int motor2, int motor3)
 {
 
     if(motor0<0)
-      motor0=0;
-    if(motor0>2000)
-      motor0=2000;
+      motor0=thrust_min;
+    if(motor0>thrust_max)
+      motor0=thrust_max;
     if(motor1<0)
-      motor1=0;
-    if(motor1>2000)
-      motor1=2000;
+      motor1=thrust_min;
+    if(motor1>thrust_max)
+      motor1=thrust_max;
     if(motor2<0)
-      motor2=0;
-    if(motor2>2000)
-      motor2=2000;
+      motor2=thrust_min;
+    if(motor2>thrust_max)
+      motor2=thrust_max;
     if(motor3<0)
-      motor3=0;
-    if(motor3>2000)
-      motor3=2000;
+      motor3=thrust_min;
+    if(motor3>thrust_max)
+      motor3=thrust_max;
       
     
     
@@ -405,12 +410,12 @@ void set_motors(int motor0, int motor1, int motor2, int motor3)
 void compute_motors() {
   thrust = thrust_neutral + (128 - (float) joystick_data.thrust) / 128 * thrust_amplitude;
   
-  pitch_desired = - (128 - (float) joystick_data.pitch) / 128 * pitch_amplitude;
+  pitch_desired = - (128 - (float) joystick_data.pitch) / 128 * pitch_amplitude + p_bias;
   float p_error = pitch_desired - pitch_filtered;
   int_p_error = int_p_error + p_i_gain * p_error;
   int_p_error = std::min(std::max(int_p_error, (float) -int_p_error_sat), (float) int_p_error_sat);
   
-  roll_desired = - (128 - (float) joystick_data.roll) / 128 * roll_amplitude;
+  roll_desired = - (128 - (float) joystick_data.roll) / 128 * roll_amplitude + r_bias;
   
   yaw_desired = (128 - (float) joystick_data.yaw) / 128 * yaw_amplitude;
   
@@ -461,11 +466,11 @@ int main (int argc, char *argv[])
       update_filter(); 
       safety_check();
       if (is_paused) {
-        set_motors(100,100,100,100);
+        set_motors(thrust_min,thrust_min,thrust_min,thrust_min);
       }
       else {
         compute_motors();
-        printf("%d, %d, %d, %d\n", motor_commands[3], motor_commands[2],motor_commands[1],motor_commands[0]);
+        //printf("%d, %d, %d, %d\n", motor_commands[3], motor_commands[2],motor_commands[1],motor_commands[0]);
         set_motors(motor_commands[0],motor_commands[1],motor_commands[2],motor_commands[3]); // back right (4), top right (3), back left (2), top left (1)
       }
       
@@ -474,8 +479,8 @@ int main (int argc, char *argv[])
         //printf("%d, %d, %f, %f\n", motor_commands[0], motor_commands[1], pitch_filtered, pitch_angle);
         //printf("%f, %f, %f, %f, %d, %d, %d, %d \n", roll_desired, roll_filtered, pitch_desired, pitch_filtered, motor_commands[3], motor_commands[2],motor_commands[1],motor_commands[0]);
         
-        printf("yaw diff: %10.5f, roll diff: %10.5f, pitch diff: %10.5f \n", 
-          yaw_desired-imu_data[3], roll_desired-roll_filtered, pitch_desired-pitch_filtered);
+        //printf("yaw diff: %10.5f, roll diff: %10.5f, pitch diff: %10.5f \n", 
+          //yaw_desired-imu_data[3], roll_desired-roll_filtered, pitch_desired-pitch_filtered);
 
       }
     
